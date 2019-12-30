@@ -92,8 +92,9 @@ def get_type(data):
 
 class Sample:
 
-    def __init__(self, file_):
-        self.config = ConfigReader(file_)
+    def __init__(self, file_, retain_case):
+        self.retain_case = retain_case
+        self.config = ConfigReader(file_, case_sensitive=self.retain_case)
 
     def __enter__(self):
         return self
@@ -115,13 +116,14 @@ class Sample:
         except FileNotFoundError:
             pass
 
-        with ConfigReader(filename) as sample:
+        with ConfigReader(filename, case_sensitive=self.retain_case) as sample:
             for section in self.config.sections:
                 items = self.config.get_items(section)
                 for k, v in items.items():
                     value = get_type(v)
                     sample.set(k, value, section=section)
 
+            sample.remove_section('main')
             sample.save()
 
     def close(self):
@@ -132,11 +134,14 @@ class Sample:
 @click.command()
 @click.argument('filename')
 @click.option('--output', '-o', default='settings.ini.sample', help='Filename of sample')
-def samplify(filename, output):
+@click.option('--no-retain-case', default=False, is_flag=True, help='Convert all keys to lowercase. Defaults to False')
+def samplify(filename, output, no_retain_case):
     """Generate a sample configuration file from an existing one"""
 
+    retain_case = not no_retain_case
+
     click.echo(f'Generating sample file {output} from {filename}')
-    with Sample(filename) as sample:
+    with Sample(filename, retain_case) as sample:
         sample.create(output)
 
 
